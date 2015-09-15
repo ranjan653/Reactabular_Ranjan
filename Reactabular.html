@@ -19,10 +19,7 @@
 	<link rel="stylesheet" href="css/style.css">
 	
 	<script src="js/generate_data.js"></script>
-	<script src="section_wrapper.jsx"></script>		
-
-	
-	
+	<script src="section_wrapper.jsx"></script>
 	
   </head>
   <body>
@@ -37,6 +34,18 @@ var highlight =Reactabular.formatters.highlight;
 var Paginator = ReactPagify;
 var paginate = Paginator.paginate;
 console.log(Paginator);
+
+var Form = require('plexus-form');
+var validate = require('plexus-validate');
+var SkyLight = require('babel!react-skylight/src/skylight.jsx'); // XXX: no proper build yet
+var generators = require('annogenerate');
+var math = require('annomath');
+var titleCase = require('title-case');
+var FieldWrapper = require('./field_wrapper.jsx');
+var SectionWrapper = require('./section_wrapper.jsx');
+var generateData = require('./generate_data');
+
+
 
 var countries=[
     {
@@ -354,7 +363,7 @@ React.render(<From2  />, document.getElementById("soln2"));
 	<script>
 	function augmentWithTitles(o) {
     for (var property in o) {
-        o[property].title =""; //titleCase(property);
+        o[property].title =titleCase(property);
     }
 
     return o;
