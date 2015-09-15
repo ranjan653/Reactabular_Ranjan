@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Hello React</title>
+    <script src="bower_components/jquery-2.1.4.min/index.js"></script>
+	<link rel="stylesheet" href="css/bootstrap.min.css">
+	<link rel="stylesheet" href="bootstrap-datepicker/css/bootstrap-datepicker3.css">
+	<script src="js/bootstrap.js"></script>
+    <script src="bower_components/react/react-with-addons.js"></script>
+    <script src="bower_components/react/JSXTransformer.js"></script>
+    <script src="bower_components/react-bootstrap/react-bootstrap.min.js"></script>
+   	<script src="js/lodash.min.js"></script>
+	<script src="js/reactabular.min.js"></script>	
+	<script src="js/react-bootstrap-table.min.js"></script>
+	<script src="js/react-pagify.js"></script>	
+	<script src="js/underscore-min.js"></script>	
+	<link rel="stylesheet" href="css/skylight.css">
+	<link rel="stylesheet" href="css/main.css">
+	<link rel="stylesheet" href="css/style.css">
+	
+	<script src="js/generate_data.js"></script>
+	<script src="section_wrapper.jsx"></script>		
+
+	
+	
+	
+  </head>
+  <body>
+    <div id="soln2"></div>
+    <script type="text/jsx">
+var Search = Reactabular.Search;
+var Table2 = Reactabular.Table2;
+var editors = Reactabular.editors;
+var sortColumn =Reactabular.sortColumn;
+var cells = Reactabular.cells;
+var highlight =Reactabular.formatters.highlight;
+var Paginator = ReactPagify;
+var paginate = Paginator.paginate;
+console.log(Paginator);
+
+var countries=[
+    {
+        value: 'de',
+        name: 'Germany',
+    },
+    {
+        value: 'gk',
+        name: 'Greece',
+    },
+    {
+        value: 'fi',
+        name: 'Finland',
+    },
+    {
+        value: 'it',
+        name: 'Italy',
+    },
+    {
+        value: 'pl',
+        name: 'Poland',
+    },
+    {
+        value: 'se',
+        name: 'Sweden',
+    },
+];
+
+var From2 = React.createClass({
+getInitialState() {
+        var countryValues = countries.map((c) => c.value);
+        var properties = augmentWithTitles({
+            name: {
+                type: 'string'
+            },
+            position: {
+                type: 'string'
+            },
+            salary: {
+                type: 'number'
+            },
+            country: {
+                enum: countryValues,
+                enumNames: countries.map((c) => c.name),
+            },
+            active: {
+                type: 'boolean'
+            },
+        });
+        var data = generateData({
+            amount: 100,
+            fieldGenerators: getFieldGenerators(countryValues),
+            properties: properties,
+        });
+        data = attachIds(data);
+        var editable = cells.edit.bind(this, 'editedCell', (value, celldata, rowIndex, property) => {
+            var idx = findIndex(this.state.data, {
+                id: celldata[rowIndex].id,
+            });
+
+            this.state.data[idx][property] = value;
+
+            this.setState({
+                data: data,
+            });
+        });
+        var formatters = {
+            country: (country) => find(countries, 'value', country).name,
+            salary: (salary) => parseFloat(salary).toFixed(2),
+        };
+
+        var highlighter = (column) => highlight((value) => {
+            return Search.matches(column, value, this.state.search.query);
+        });
+
+        return {
+            editedCell: null,
+            data: data,
+            formatters: formatters,
+            search: {
+                column: '',
+                query: ''
+            },
+            header: {
+                onClick: (column) => {
+                    // reset edits
+                    this.setState({
+                        editedCell: null
+                    });
+
+                    sortColumn(
+                        this.state.columns,
+                        column,
+                        this.setState.bind(this)
+                    );
+                },
+            },
+            sortingColumn: null, // reference to sorting column
+            columns: [
+                {
+                    property: 'name',
+                    header: 'Name',
+                    cell: [editable({
+                        editor: editors.input(),
+                    }), highlighter('name')],
+                },
+                {
+                    property: 'position',
+                    header: 'Position',
+                    cell: [highlighter('position')]
+                },
+                {
+                    property: 'country',
+                    header: 'Country',
+                    search: formatters.country,
+                    cell: [editable({
+                        editor: editors.dropdown(countries),
+                    }), formatters.country, highlighter('country')]
+                },
+                {
+                    property: 'salary',
+                    header: 'Salary',
+                    search: formatters.salary,
+                    cell: [formatters.salary, highlighter('salary')],
+                },
+                {
+                    property: 'active',
+                    header: 'Active',
+                    cell: [
+                        editable({
+                            editor: editors.boolean(),
+                        }),
+                        (active) => active && <span>&#10003;</span>
+                    ],
+                },
+                {
+                    cell: function(value, celldata, rowIndex) {
+                        var idx = findIndex(this.state.data, {
+                            id: celldata[rowIndex].id,
+                        });
+
+                        var edit = () => {
+                            var schema = {
+                                type: 'object',
+                                properties: properties,
+                            };
+
+                            var onSubmit = (editData, editValue) => {
+                                this.refs.modal.hide();
+
+                                if(editValue === 'Cancel') {
+                                    return;
+                                }
+
+                                this.state.data[idx] = editData;
+
+                                this.setState({
+                                    data: this.state.data
+                                });
+                            };
+
+                            var getButtons = (submit) => {
+                                return (
+                                    <span>
+                                        <input type='submit'
+                                            className='pure-button pure-button-primary ok-button'
+                                            key='ok' value='OK'
+                                            onClick={submit} />
+                                        <input type='submit'
+                                            className='pure-button cancel-button'
+                                            key='cancel' value='Cancel'
+                                            onClick={submit} />
+                                    </span>
+                                );
+                            };
+
+                            this.setState({
+                                modal: {
+                                    title: 'Edit',
+                                    content: <Form
+                                        className='pure-form pure-form-aligned'
+                                        fieldWrapper={FieldWrapper}
+                                        sectionWrapper={SectionWrapper}
+                                        buttons={getButtons}
+                                        schema={schema}
+                                        validate={validate}
+                                        values={this.state.data[idx]}
+                                        onSubmit={onSubmit}/>
+                                }
+                            });
+
+                            this.refs.modal.show();
+                        };
+
+                        var remove = () => {
+                            // this could go through flux etc.
+                            this.state.data.splice(idx, 1);
+
+                            this.setState({
+                                data: this.state.data
+                            });
+                        };
+
+                        return {
+                            value: (
+                                <span>
+                                    <span className='edit' onClick={edit.bind(this)} style={{cursor: 'pointer'}}>
+                                        &#8665;
+                                    </span>
+                                    <span className='remove' onClick={remove.bind(this)} style={{cursor: 'pointer'}}>
+                                        &#10007;
+                                    </span>
+                                </span>
+                            )
+                        };
+                    }.bind(this),
+                },
+            ],
+            modal: {
+                title: 'title',
+                content: 'content',
+            },
+            pagination: {
+                page: 0,
+                perPage: 10
+            }
+        };
+    },
+
+    onSearch(search) {
+        this.setState({
+            search: search
+        });
+    },
+
+    render() {
+        var header = this.state.header;
+        var columns = this.state.columns;
+
+        var pagination = this.state.pagination;
+
+        var data = this.state.data;
+
+        if (this.state.search.query) {
+            data = Search.search(
+                data,
+                columns,
+                this.state.search.column,
+                this.state.search.query
+            );
+        }
+
+        data = sortColumn.sort(data, this.state.sortingColumn);
+
+        var paginated = Paginator.paginate(data, pagination);
+
+        return (
+            <div>
+                <div className='controls'>
+                    <div className='per-page-container'>
+                        Per page <input type='text' defaultValue={pagination.perPage} onChange={this.onPerPage}></input>
+                    </div>
+                    <div className='search-container'>
+                        Search <Search columns={columns} data={this.state.data} onChange={this.onSearch} />
+                    </div>
+                </div>
+                <Table2
+                    className='pure-table pure-table-striped'
+                    header={header}
+                    columns={columns}
+                    data={paginated.data}
+                    row={(d, rowIndex) => {
+                        return {
+                            className: rowIndex % 2 ? 'odd-row' : 'even-row',
+                            onClick: () => console.log('clicked row', d)
+                        };
+                    }}
+                >
+                    <tfoot>
+                        <tr>
+                            <td>
+                                You could show sums etc. here in the customizable footer.
+                            </td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </Table2>
+                <div className='controls'>
+                    <div className='pagination'>
+                        <Paginator
+                            page={paginated.page}
+                            pages={paginated.amount}
+                            beginPages={3}
+                            endPages={3}
+                            onSelect={this.onSelect} />
+                    </div>
+                </div>
+                <SkyLight ref='modal' title={this.state.modal.title}>{this.state.modal.content}</SkyLight>
+            </div>
+        );
+    },
+});
+
+
+React.render(<From2  />, document.getElementById("soln2"));
+
+
+
+    </script>
+	
+	<script>
+	function augmentWithTitles(o) {
+    for (var property in o) {
+        o[property].title =""; //titleCase(property);
+    }
+
+    return o;
+}
+
+function getFieldGenerators(countryValues) {
+    return {
+        name: function() {
+            var forenames = ['Jack', 'Bo', 'John', 'Jill', 'Angus', 'Janet', 'Cecilia',
+            'Daniel', 'Marge', 'Homer', 'Trevor', 'Fiona', 'Margaret', 'Ofelia'];
+            var surnames = ['MacGyver', 'Johnson', 'Jackson', 'Robertson', 'Hull', 'Hill'];
+
+            return math.pick(forenames) + ' ' + math.pick(surnames);
+        },
+        position: function() {
+            var positions = ['Boss', 'Contractor', 'Client'];
+
+            return math.pick(positions);
+        },
+        salary: generators.number.bind(null, 0, 100000),
+        country: function() {
+            return math.pick(countryValues);
+        }
+    };
+}
+
+function attachIds(arr) {
+    return arr.map((o, i) => {
+        o.id = i;
+
+        return o;
+    });
+}
+
+function find(arr, key, value) {
+    return arr.reduce((a, b) => a[key] === value ? a : b[key] === value && b);
+}
+	</script>
+  </body>
+</html>
